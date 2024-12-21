@@ -17,8 +17,6 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive"
     ]
 
-creds_path = "/home/nishikanth/Projects/secrets/client_secret_699213105659-c2pc5s591ddqm9p484ds9bs31o4mqd7h.apps.googleusercontent.com.json"
-
 class auth():
     def __init__(self) -> None:
         self.token = None
@@ -81,9 +79,8 @@ class gdriveOperations():
         except Exception as ex:
             logger.error(f"Exception while listing files {ex}")
     
-    
-    
 def main():
+    creds_path = "/home/nishikanth/Projects/secrets/client_secret_699213105659-c2pc5s591ddqm9p484ds9bs31o4mqd7h.apps.googleusercontent.com.json"    
     g_ops = gdriveOperations(creds_path=creds_path)
     g_ops.list_files(1)
     
