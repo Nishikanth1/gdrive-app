@@ -1,10 +1,16 @@
+import logging
 import os.path
+import sys
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler(sys.stdout))
+logging.basicConfig(encoding='utf-8', format='%(asctime)s %(levelname)s  %(message)s', level=logging.DEBUG)
 
 SCOPES = [
     "https://www.googleapis.com/auth/drive.metadata.readonly",
@@ -62,18 +68,18 @@ class gdriveOperations():
                 items = results.get("files", [])
                 page_token = results.get("nextPageToken", None)
                 if not items:
-                    print("No files found.")
+                    logger.debug("No files found.")
                     return
-                print("Files:")
+                logger.debug("Files:")
                 for item in items:
                     files.append(item)
-                    print(f"{item['name']} ({item['id']}) ({item.get('fileExtension')}) ({item.get('trashed')})") 
+                    logger.debug(f"{item['name']} ({item['id']}) ({item.get('fileExtension')}) ({item.get('trashed')})") 
                 if not page_token:
                     return files
         except HttpError as error:
-            print(f"An error occurred: {error}")        
+            logger.error(f"An error occurred: {error}")        
         except Exception as ex:
-            print(f"Exception while listing files {ex}")
+            logger.error(f"Exception while listing files {ex}")
     
     
     
