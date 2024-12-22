@@ -2,7 +2,7 @@ import logging
 import sys 
 import json 
 
-from flask import Flask, request, make_response
+from flask import Flask, request, make_response, send_file
 from werkzeug.utils import secure_filename
 
 from storage_service.gdrive import gdriveOperations, gdriveAuth
@@ -85,9 +85,41 @@ def upload_file():
         err = {
             "message": message
         }
+        return make_response(err, 500)
 
     resp = make_response(file_info, 201)
     return resp
-        
+
+@app.route('/v1/delete/<string:file_id>', methods = ['DELETE'])
+def delete_file(file_id):
+    logger.info(f"file_id {file_id}")
+    user_name = request.headers.get('x-user-name', "")
+    try:
+        g_ops = gdriveOperations(user_name=user_name)
+        file_info = g_ops.delete_file(file_id=file_id)
+    except Exception as g_ex:
+        message = f"Error while deleting file from storage {g_ex}"
+        logger.error(message)
+        err = {
+            "message": message
+        }
+        return make_response(err, 500)
+    return make_response({"data": file_info}, 200)
+
+@app.route('/v1/download/<string:file_id>')
+def download_file(file_id):
+    user_name = request.headers.get('x-user-name', "")
+    try:
+        g_ops = gdriveOperations(user_name=user_name)
+        file_path = g_ops.download_file(file_id=file_id)
+    except Exception as g_ex:
+        message = f"Error while downloading file from storage {g_ex}"
+        logger.error(message)
+        err = {
+            "message": message
+        }
+        return make_response(err, 500)
+    return send_file(file_path, as_attachment=True)
+
 if __name__ == '__main__':
     app.run(debug = True)
