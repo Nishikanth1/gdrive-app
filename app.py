@@ -23,8 +23,7 @@ def auth():
     request_data = request.get_json()
     creds_json = request_data.get("creds", {})
     if not creds_json:
-        resp = make_response({"message": "need creds to auth"})        
-        resp.status_code = 401
+        resp = make_response({"message": "need creds to auth"}, 401)        
         return resp
     user_name = request_data.get("user_name", {})
     creds_path = f"{CLIENT_SECRETS_PATH}/{user_name}.json"
@@ -33,8 +32,7 @@ def auth():
     
     auth_obj = gdriveAuth(user_name)    
     creds = auth_obj.get_credentials(creds_path, SCOPES)
-    resp = make_response()
-    resp.status_code = 201
+    resp = make_response({}, 201)
     return resp
     
     
