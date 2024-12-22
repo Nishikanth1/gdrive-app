@@ -7,26 +7,26 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+from googleapiclient.http import MediaFileUpload
+
+from config.constants import SCOPES, CLIENT_TOKEN_PATH, CLIENT_SECRETS_PATH
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler(sys.stdout))
 logging.basicConfig(encoding='utf-8', format='%(asctime)s %(levelname)s  %(message)s', level=logging.DEBUG)
 
-SCOPES = [
-    "https://www.googleapis.com/auth/drive.metadata.readonly",
-    "https://www.googleapis.com/auth/drive"
-    ]
 
-class auth():
-    def __init__(self) -> None:
+class gdriveAuth():
+    def __init__(self, user_name) -> None:
         self.token = None
+        self.token_path = f"{CLIENT_TOKEN_PATH}/token_{user_name}.json"
 
     def get_credentials(self, creds_path, scopes):
         creds = None
         if self.token:
             creds = Credentials(self.token)
-        elif os.path.exists("token.json"):
-            creds = Credentials.from_authorized_user_file("token.json", scopes)
+        elif os.path.exists(self.token_path):
+            creds = Credentials.from_authorized_user_file(self.token_path, scopes)
 
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:
@@ -38,19 +38,23 @@ class auth():
                 creds = flow.run_local_server(port=0)
                 # Save the credentials for the next run
                 self.token = creds
-                with open("token.json", "w") as token:
+                with open(self.token_path, "w") as token:
                     token.write(creds.to_json())
         
         return creds
 
 class gdriveOperations():
-    def __init__(self, creds_path) -> None:
-        self.auth_obj = auth()
-        self.creds = self.auth_obj.get_credentials(creds_path, SCOPES)
+    def __init__(self, user_name) -> None:
+        self.user_name = user_name
+        self.creds_path = f"{CLIENT_SECRETS_PATH}/{self.user_name}.json"
+        self.auth_obj = gdriveAuth(self.user_name)
+        self.creds = self.auth_obj.get_credentials(self.creds_path, SCOPES)
+        self.gdrive_service = build("drive", "v3", credentials= self.creds)
+        logging.info(f"initiated gdrive ops class with creds for user {self.user_name}")
     
     def list_files(self, page_size=10):
         try:
-            service = build("drive", "v3", credentials= self.creds)
+            logger.info(f"Listing files for user {self.user_name}")
             fields_list = ["id", "name", "fileExtension", "trashed", "modifiedTime"]
             fields = ", ".join(fields_list)
             query = "trashed = false and  mimeType != 'application/vnd.google-apps.folder'"
@@ -59,7 +63,7 @@ class gdriveOperations():
             files = []
             while True:
                 results = (
-                    service.files()
+                    self.gdrive_service.files()
                     .list(pageSize=page_size, pageToken=page_token,fields=f"nextPageToken, files({fields})", q=query)
                     .execute()
                 )
@@ -79,11 +83,26 @@ class gdriveOperations():
         except Exception as ex:
             logger.error(f"Exception while listing files {ex}")
     
+    def upload_file(self, local_path, parents=[]):
+        logger.info(f"uploading file {local_path}")
+        file_name = local_path.split("/")[-1]
+        file_metadata = { 
+                         'name' : file_name,
+                         "parents": parents
+                        }
+        media = MediaFileUpload(local_path ,
+                          mimetype='text/csv')
+        file = self.gdrive_service.files().create(body=file_metadata,
+                                      media_body=media,
+                                      fields='id').execute()
+        logger.info(f"uploaded file {local_path} with response {file}")
+        return file
+
 def main():
-    creds_path = "/home/nishikanth/Projects/secrets/client_secret_699213105659-c2pc5s591ddqm9p484ds9bs31o4mqd7h.apps.googleusercontent.com.json"    
-    g_ops = gdriveOperations(creds_path=creds_path)
+    # creds_path = "/home/nishikanth/Projects/secrets/client_secret_699213105659-c2pc5s591ddqm9p484ds9bs31o4mqd7h.apps.googleusercontent.com.json"    
+    user_name = "ncs"
+    g_ops = gdriveOperations(user_name)
     g_ops.list_files(1)
-    
     
 if __name__ == "__main__":
   main()
