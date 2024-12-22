@@ -1,6 +1,7 @@
 import logging
 import os.path
 import sys
+import io
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -8,8 +9,9 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
+from googleapiclient.http import MediaIoBaseDownload
 
-from config.constants import SCOPES, CLIENT_TOKEN_PATH, CLIENT_SECRETS_PATH
+from config.constants import SCOPES, CLIENT_TOKEN_PATH, CLIENT_SECRETS_PATH, TEMP_FILE_DOWNLOAD_PATH
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -98,11 +100,43 @@ class gdriveOperations():
         logger.info(f"uploaded file {local_path} with response {file}")
         return file
 
+    def delete_file(self, file_id):
+        resp = self.gdrive_service.files().delete(fileId=file_id).execute()
+        logger.info(f"del resp is {resp} id of file deleted: {file_id}")
+        return resp
+    
+    def get_file(self, file_id):
+        file_info = self.gdrive_service.files().get(fileId=file_id).execute()
+        return file_info
+    
+    def download_file(self, file_id):
+        file_info = self.get_file(file_id)
+        logger.info(f"file info is {file_info}")
+        file_name = file_info.get("name")
+        
+        media_data_request = self.gdrive_service.files().get_media(fileId=file_id)
+        # media_data_request = service.files().export_media(
+        #       fileId=item['id'], mimeType="text/csv"
+        #   )
+        file = io.BytesIO()
+        downloader = MediaIoBaseDownload(file, media_data_request)
+        done = False
+        while done is False:
+            status, done = downloader.next_chunk()
+            print(f"Download {int(status.progress() * 100)}.")
+        print(f"media_data {file} for file {file_id}")
+        
+        file_path = f"{TEMP_FILE_DOWNLOAD_PATH}/{file_name}"
+        with open(file_path, "+bw") as f:
+            f.write(file.getvalue())
+        return file_path
+    
 def main():
     # creds_path = "/home/nishikanth/Projects/secrets/client_secret_699213105659-c2pc5s591ddqm9p484ds9bs31o4mqd7h.apps.googleusercontent.com.json"    
     user_name = "ncs"
     g_ops = gdriveOperations(user_name)
-    g_ops.list_files(1)
+    # g_ops.list_files(1)
+    g_ops.download_file("1cn_SYzMhZUZvvGrugeix2F65PQh01x9C")
     
 if __name__ == "__main__":
   main()
