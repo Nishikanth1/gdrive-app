@@ -56,9 +56,10 @@ def list_files():
 @app.route('/v1/upload', methods = ['POST'])
 def upload_file():   
     input_file = request.files.get('input_file')
+    parent_id = request.form.get('parent_id')
+    parents = [parent_id]
+    logger.info(f"parents is {parents}")    
     
-    request_data = request.get_json()
-    parents = request_data.get('parents', [])
     if not input_file:
         err = {
             "message": "input file not found"
