@@ -6,7 +6,7 @@ from flask import Flask, request, make_response, send_file
 from werkzeug.utils import secure_filename
 
 from storage_service.gdrive import gdriveOperations, gdriveAuth
-from config.constants import SCOPES, CLIENT_SECRETS_PATH
+from config.constants import SCOPES, CLIENT_SECRETS_PATH, TEMP_FILE_STORAGE_PATH
 
 app = Flask(__name__)
 app.logger.setLevel(logging.INFO)
@@ -35,7 +35,6 @@ def auth():
     resp = make_response({}, 201)
     return resp
     
-    
 @app.route('/v1/list')
 def list_files():
     user_name = request.headers.get('x-user-name', "")
@@ -56,18 +55,21 @@ def list_files():
 
 @app.route('/v1/upload', methods = ['POST'])
 def upload_file():   
-    f = request.files['input_file'] 
-    if not f:
+    input_file = request.files.get('input_file')
+    
+    request_data = request.get_json()
+    parents = request_data.get('parents', [])
+    if not input_file:
         err = {
             "message": "input file not found"
         }
-        resp = make_response(err, 400)
-        return resp
+        return make_response(err, 400)
     
     user_name = request.headers.get('x-user-name', "")
     try:
-        filename = secure_filename(f.filename)
-        f.save(filename)
+        filename = secure_filename(input_file.filename)
+        filepath = f"{TEMP_FILE_STORAGE_PATH}/{filename}"
+        input_file.save(filepath)
     except Exception as f_ex:
         message = f"Exception while saving upload file locally {f_ex}"
         logger.error(message)
@@ -78,7 +80,7 @@ def upload_file():
     
     try:
         g_ops = gdriveOperations(user_name=user_name)
-        file_info = g_ops.upload_file(local_path=filename)
+        file_info = g_ops.upload_file(filepath, parents)
     except Exception as g_ex:
         message = f"Error while uploading file to storage {g_ex}"
         logger.error(message)
