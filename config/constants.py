@@ -19,5 +19,6 @@ FILE_TYPE_MIME_TYPE = {
     "jpeg": "application/json",
     "jpg": "application/json",
     "pdf": "application/pdf",
-    "xls": "application/vnd.ms-excel"
+    "xls": "application/vnd.ms-excel",
+    "json": "application/json"
 }
