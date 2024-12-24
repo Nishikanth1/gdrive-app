@@ -11,7 +11,8 @@ from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 from googleapiclient.http import MediaIoBaseDownload
 
-from config.constants import SCOPES, CLIENT_TOKEN_PATH, CLIENT_SECRETS_PATH, TEMP_FILE_DOWNLOAD_PATH
+from config.constants import SCOPES, CLIENT_TOKEN_PATH, CLIENT_SECRETS_PATH, TEMP_FILE_DOWNLOAD_PATH, \
+    FILE_TYPE_MIME_TYPE, LIST_FOLDERS
 
 logger = logging.getLogger(__name__)
 logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -57,9 +58,10 @@ class gdriveOperations():
     def list_files(self, page_size=10):
         try:
             logger.info(f"Listing files for user {self.user_name}")
-            fields_list = ["id", "name", "fileExtension", "trashed", "modifiedTime"]
+            fields_list = ["id", "name", "fileExtension", "trashed", "modifiedTime", "parents"]
             fields = ", ".join(fields_list)
-            query = "trashed = false and  mimeType != 'application/vnd.google-apps.folder'"
+            folder_list_query = "" if LIST_FOLDERS else "mimeType != 'application/vnd.google-apps.folder'"
+            query = "trashed = false " + folder_list_query
             page_token = None
             
             files = []
@@ -86,18 +88,25 @@ class gdriveOperations():
             logger.error(f"Exception while listing files {ex}")
     
     def upload_file(self, local_path, parents=[]):
-        logger.info(f"uploading file {local_path}")
+        logger.info(f"uploading file {local_path} parents {parents}")
         file_name = local_path.split("/")[-1]
+        file_type = file_name.split(".")[-1]
+        mime_type = FILE_TYPE_MIME_TYPE.get(file_type, None)
+        if not mime_type:
+            message = f"file {file_type} type not supported, corresponding mime type not found. Please update"
+            logger.error(message)
+            raise Exception(message)
         file_metadata = { 
                          'name' : file_name,
-                         "parents": parents
-                        }
+                         "parents": parents,
+                         "mimeType": mime_type
+                        }        
         media = MediaFileUpload(local_path ,
-                          mimetype='text/csv')
+                          mimetype=mime_type)
         file = self.gdrive_service.files().create(body=file_metadata,
                                       media_body=media,
                                       fields='id').execute()
-        logger.info(f"uploaded file {local_path} with response {file}")
+        logger.info(f"uploaded file {local_path} with response {file} file_metadata {file_metadata}")
         return file
 
     def delete_file(self, file_id):
