@@ -24,41 +24,54 @@ logging.basicConfig(encoding='utf-8', format='%(asctime)s %(levelname)s  %(messa
 class gdriveAuth():
     def __init__(self, user_name, creds_path) -> None:
         self.token = None
+        self.user_name = user_name
         self.token_path = f"{CLIENT_TOKEN_PATH}/token_{user_name}.json"
         self.creds_path = creds_path
         self.is_service_account = False
-        with open(self.creds_path) as json_file:
-            data = json.load(json_file)
-            self.is_service_account= data.get("type", "").lower() == "service_account"
-        logger.info(f"Created auth object {self.__dict__}")
+        try:
+            with open(self.creds_path) as json_file:
+                data = json.load(json_file)
+                self.is_service_account= data.get("type", "").lower() == "service_account"
+            logger.info(f"Created auth object {self.__dict__}")
+        except Exception as ex:
+            if "No such file or directory" in str(ex):
+                message = f"user {self.user_name} not authenticated, please use /auth api"
+                logger.error(message)
+                raise Exception(message)
 
     def get_credentials(self, scopes ):
-        creds = None
-        if self.is_service_account:
-            logger.info(f"is_service_account {self.is_service_account} here")
-            creds = service_account.Credentials.from_service_account_file(
-                            self.creds_path, scopes=scopes)
-            logger.info(f"service account creds is {creds.__dict__}")
-            return creds        
-        if self.token:
-            creds = Credentials(self.token)
-        elif os.path.exists(self.token_path):
-            creds = Credentials.from_authorized_user_file(self.token_path, scopes)
+        try:
+            creds = None
+            if self.is_service_account:
+                logger.info(f"is_service_account {self.is_service_account} here")
+                creds = service_account.Credentials.from_service_account_file(
+                                self.creds_path, scopes=scopes)
+                logger.info(f"service account creds is {creds.__dict__}")
+                return creds        
+            if self.token:
+                creds = Credentials(self.token)
+            elif os.path.exists(self.token_path):
+                creds = Credentials.from_authorized_user_file(self.token_path, scopes)
 
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file(
-                    self.creds_path, scopes
-                )
-                creds = flow.run_local_server(port=0)
-                # Save the credentials for the next run
-                self.token = creds
-                with open(self.token_path, "w") as token:
-                    token.write(creds.to_json())
-        
-        return creds
+            if not creds or not creds.valid:
+                if creds and creds.expired and creds.refresh_token:
+                    creds.refresh(Request())
+                else:
+                    flow = InstalledAppFlow.from_client_secrets_file(
+                        self.creds_path, scopes
+                    )
+                    creds = flow.run_local_server(port=0)
+                    # Save the credentials for the next run
+                    self.token = creds
+                    with open(self.token_path, "w") as token:
+                        token.write(creds.to_json())
+            
+            return creds
+        except Exception as ex:
+            if "No such file or directory" in ex:
+                message = f"user {self.user_name} not authenticated, please use /auth api"
+                logger.error(message)
+                raise Exception(message)
 
 class gdriveOperations():
     def __init__(self, user_name) -> None:
