@@ -31,8 +31,8 @@ def create_app():
         with open(creds_path, "w") as f:
             json.dump(creds_json, f, ensure_ascii=False, indent=4)
         
-        auth_obj = gdriveAuth(user_name)    
-        creds = auth_obj.get_credentials(creds_path, SCOPES)
+        auth_obj = gdriveAuth(user_name, creds_path)    
+        creds = auth_obj.get_credentials(SCOPES)
         resp = make_response({}, 201)
         return resp
         
@@ -116,7 +116,6 @@ def create_app():
         try:
             g_ops = gdriveOperations(user_name=user_name)
             file_path = g_ops.download_file(file_id=file_id)
-            import pdb; pdb.set_trace()
         except Exception as g_ex:
             message = f"Error while downloading file from storage {g_ex}"
             logger.error(message)
