@@ -21,28 +21,34 @@ def create_app():
     
     @app.route('/v1/auth', methods = ['POST'])
     def auth():
-        request_data = request.get_json()
-        creds_json = request_data.get("creds", {})
-        if not creds_json:
-            resp = make_response({"message": "need creds to auth"}, 401)        
-            return resp
-        user_name = request_data.get("user_name", {})
-        creds_path = f"{CLIENT_SECRETS_PATH}/{user_name}.json"
-        with open(creds_path, "w") as f:
-            json.dump(creds_json, f, ensure_ascii=False, indent=4)
+        try:
+            request_data = request.get_json()
+            creds_json = request_data.get("creds", {})
+            if not creds_json:
+                resp = make_response({"message": "need creds to auth"}, 401)        
+                return resp
+            user_name = request_data.get("user_name", {})
+            creds_path = f"{CLIENT_SECRETS_PATH}/{user_name}.json"
+            with open(creds_path, "w") as f:
+                json.dump(creds_json, f, ensure_ascii=False, indent=4)
+            
+            auth_obj = gdriveAuth(user_name, creds_path)    
+            auth_obj.get_credentials(SCOPES)
+            return make_response({"message": "successfully created creds for operations"}, 201)
+        except Exception as ex1:
+            logger.error(f"Exception {ex1} while perform auth")
+            return make_response({"message": f"failed while creating creds for operations with {ex1}"}, 500)
         
-        auth_obj = gdriveAuth(user_name, creds_path)    
-        creds = auth_obj.get_credentials(SCOPES)
-        resp = make_response({}, 201)
-        return resp
-        
-    @app.route('/v1/list')
+    @app.route('/v1/list/')
     def list_files():
         user_name = request.headers.get('x-user-name', "")
+        list_folders = request.args.get('list_folders', default=False)
+        list_folders = list_folders.lower() == "true"
+        logger.info(f"list_folders is {list_folders}")
         response = make_response({})
         try:
             g_ops = gdriveOperations(user_name=user_name)
-            files = g_ops.list_files()        
+            files = g_ops.list_files(list_folders=list_folders)        
             response_body = {
                 "files": files
             }
@@ -100,7 +106,7 @@ def create_app():
         user_name = request.headers.get('x-user-name', "")
         try:
             g_ops = gdriveOperations(user_name=user_name)
-            file_info = g_ops.delete_file(file_id=file_id)
+            g_ops.delete_file(file_id=file_id)
         except Exception as g_ex:
             message = f"Error while deleting file from storage {g_ex}"
             logger.error(message)
@@ -108,7 +114,7 @@ def create_app():
                 "message": message
             }
             return make_response(err, 500)
-        return make_response({"data": file_info}, 200)
+        return make_response({"data": f"deleted {file_id}"}, 200)
 
     @app.route('/v1/download/<string:file_id>')
     def download_file(file_id):
