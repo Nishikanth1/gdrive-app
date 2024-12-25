@@ -2,9 +2,11 @@ import logging
 import os.path
 import sys
 import io
+import json
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google.oauth2 import service_account
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -20,12 +22,24 @@ logging.basicConfig(encoding='utf-8', format='%(asctime)s %(levelname)s  %(messa
 
 
 class gdriveAuth():
-    def __init__(self, user_name) -> None:
+    def __init__(self, user_name, creds_path) -> None:
         self.token = None
         self.token_path = f"{CLIENT_TOKEN_PATH}/token_{user_name}.json"
+        self.creds_path = creds_path
+        self.is_service_account = False
+        with open(self.creds_path) as json_file:
+            data = json.load(json_file)
+            self.is_service_account= data.get("type", "").lower() == "service_account"
+        logger.info(f"Created auth object {self.__dict__}")
 
-    def get_credentials(self, creds_path, scopes):
+    def get_credentials(self, scopes ):
         creds = None
+        if self.is_service_account:
+            logger.info(f"is_service_account {self.is_service_account} here")
+            creds = service_account.Credentials.from_service_account_file(
+                            self.creds_path, scopes=scopes)
+            logger.info(f"service account creds is {creds.__dict__}")
+            return creds        
         if self.token:
             creds = Credentials(self.token)
         elif os.path.exists(self.token_path):
@@ -36,7 +50,7 @@ class gdriveAuth():
                 creds.refresh(Request())
             else:
                 flow = InstalledAppFlow.from_client_secrets_file(
-                    creds_path, scopes
+                    self.creds_path, scopes
                 )
                 creds = flow.run_local_server(port=0)
                 # Save the credentials for the next run
@@ -50,8 +64,8 @@ class gdriveOperations():
     def __init__(self, user_name) -> None:
         self.user_name = user_name
         self.creds_path = f"{CLIENT_SECRETS_PATH}/{self.user_name}.json"
-        self.auth_obj = gdriveAuth(self.user_name)
-        self.creds = self.auth_obj.get_credentials(self.creds_path, SCOPES)
+        self.auth_obj = gdriveAuth(self.user_name, self.creds_path)
+        self.creds = self.auth_obj.get_credentials(SCOPES)
         self.gdrive_service = build("drive", "v3", credentials= self.creds)
         logging.info(f"initiated gdrive ops class with creds for user {self.user_name}")
     

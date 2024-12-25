@@ -105,5 +105,4 @@ def test_delete_file(client):
 def test_download_file(client):
     response = client.get("/v1/download/abcd1234")
     assert response._status_code == 200
-    import pdb; pdb.set_trace()    
     assert response.headers['Content-Disposition'] ==  f'attachment; filename="{DOWNLOADED_FILE_PATH}"'
