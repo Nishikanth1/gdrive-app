@@ -2,8 +2,9 @@ import pytest
 import requests
 import json
 import io
+import os
 
-TEST_SERVICE_ACCOUNT_CREDS_PATH = "/home/nishikanth/Projects/secrets/test-service-account.json"
+TEST_SERVICE_ACCOUNT_CREDS_PATH = os.get("TEST_SERVICE_ACCOUNT_CREDS_PATH", "/home/nishikanth/Projects/secrets/test-service-account.json")
 TEST_SERVICE_ACCOUNT_CREDS = {}
 with open(TEST_SERVICE_ACCOUNT_CREDS_PATH) as json_file:
     TEST_SERVICE_ACCOUNT_CREDS = json.load(json_file)
