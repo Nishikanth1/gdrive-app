@@ -39,13 +39,16 @@ def create_app():
             logger.error(f"Exception {ex1} while perform auth")
             return make_response({"message": f"failed while creating creds for operations with {ex1}"}, 500)
         
-    @app.route('/v1/list')
+    @app.route('/v1/list/')
     def list_files():
         user_name = request.headers.get('x-user-name', "")
+        list_folders = request.args.get('list_folders', default=False)
+        list_folders = list_folders.lower() == "true"
+        logger.info(f"list_folders is {list_folders}")
         response = make_response({})
         try:
             g_ops = gdriveOperations(user_name=user_name)
-            files = g_ops.list_files()        
+            files = g_ops.list_files(list_folders=list_folders)        
             response_body = {
                 "files": files
             }

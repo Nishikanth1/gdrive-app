@@ -82,13 +82,15 @@ class gdriveOperations():
         self.gdrive_service = build("drive", "v3", credentials= self.creds)
         logging.info(f"initiated gdrive ops class with creds for user {self.user_name}")
     
-    def list_files(self, page_size=10):
+    def list_files(self, page_size=10, list_folders=False):
         try:
             logger.info(f"Listing files for user {self.user_name}")
             fields_list = ["id", "name", "fileExtension", "trashed", "modifiedTime", "parents"]
             fields = ", ".join(fields_list)
-            folder_list_query = "" if LIST_FOLDERS else "mimeType != 'application/vnd.google-apps.folder'"
-            query = "trashed = false " + folder_list_query
+            query = "trashed = false"
+            if not list_folders:
+                folder_list_query = " and mimeType != 'application/vnd.google-apps.folder'"
+                query = query + folder_list_query
             page_token = None
             
             files = []
