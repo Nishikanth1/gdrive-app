@@ -19,7 +19,11 @@ venv: ## Create a virtual environment
 install: venv ## Install dependencies
 	. $(ACTIVATE) && pip install -r $(REQ_FILE)
 
-unittest: ## Run tests with pytest
+.PHONY: setup
+setup: ## asd
+	./setup/env-setup.sh
+
+unit-test: ## Run tests with pytest
 	. $(ACTIVATE) && pytest
 
 .PHONY: integration-test
